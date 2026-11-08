@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>JUST LIFE 보장분석 · 관리자</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{--ink:#2b2a2a;--muted:#8f8b87;--line:#e2dfdb;--head:#f3f1ee;--gold:#a8895a;--gold-bg:#f2ece1;--brand:#424141;--red:#a5523d;--good:#4a6a45}
+*{box-sizing:border-box}
+body{margin:0;font-family:Pretendard,"Malgun Gothic",sans-serif;color:var(--ink);background:#f6f4f1;font-size:14px}
+button,input,select{font:inherit}
+.top{background:var(--brand);color:#efebe6;display:flex;align-items:center;gap:14px;padding:12px 24px}
+.top b{font-size:16px;letter-spacing:.5px}.top .sp{flex:1}
+.top button{background:transparent;border:1px solid #6a6766;color:#efebe6;border-radius:16px;padding:5px 13px;cursor:pointer;font-size:12.5px}
+.top button:hover{background:#565454}
+main{max-width:1100px;margin:24px auto;padding:0 20px}
+.card{background:#fff;border-radius:10px;box-shadow:0 2px 12px rgba(0,0,0,.05);padding:20px 22px;margin-bottom:18px}
+h2{font-size:16px;margin:0 0 14px}
+h2 small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px}
+.tabs{display:flex;gap:6px;margin-bottom:16px}
+.tabs button{border:1px solid var(--line);background:#fff;border-radius:18px;padding:7px 18px;cursor:pointer;color:#555}
+.tabs button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--head);color:#555;font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid #efece8;vertical-align:middle}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:5px 11px;cursor:pointer;font-size:12.5px;color:#444}
+.btn:hover{border-color:var(--gold);background:#fffaf1}
+.btn.pri{background:var(--gold);border-color:var(--gold);color:#fff}
+.btn.pri:hover{background:#97794c}
+.btn.red{color:var(--red)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld label{font-size:11.5px;color:var(--muted)}
+.fld input,.fld select{border:1px solid var(--line);border-radius:6px;padding:7px 10px;min-width:130px}
+.pill{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:10px}
+.pill.on{background:#edf2ea;color:var(--good)}.pill.off{background:#f1efec;color:#999}.pill.lock{background:#f6e3de;color:var(--red)}
+.acts{display:flex;gap:4px;flex-wrap:wrap}
+.muted{color:var(--muted)}
+.empty{color:var(--muted);text-align:center;padding:26px 0}
+#gate{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--brand)}
+.gbox{width:300px;text-align:center;color:#fff}
+.glogo{font-family:Georgia,serif;font-size:30px;letter-spacing:9px}
+.gsub{font-size:12px;letter-spacing:3px;color:#cfc9c2;margin:6px 0 24px}
+.gbox input{display:block;width:100%;margin:0 0 8px;padding:10px 12px;border:none;border-radius:6px;text-align:center;font-size:14px}
+.gbox button{width:100%;padding:10px;border:none;border-radius:6px;background:var(--gold);color:#fff;font-size:14px;cursor:pointer}
+.gbox .err{color:#f0a593;font-size:12px;min-height:18px;margin-top:8px}
+.gbox .hint{color:#bdb6ae;font-size:11.5px;line-height:1.6;margin-top:14px}
+.newpw{background:#fffaf1;border:1px solid #e6d6b8;border-radius:8px;padding:12px 14px;margin-top:12px;line-height:1.7}
+.newpw code{font-size:15px;font-weight:700;background:#fff;padding:2px 8px;border-radius:4px;border:1px solid #e6d6b8}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#333;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:9}
+#toast.on{opacity:1}#toast.err{background:var(--red)}
+.sum td:first-child{font-weight:600}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div id="gate">
+  <div class="gbox" id="gSetup" hidden>
+    <div class="glogo">JUST LIFE</div><div class="gsub" id="sTitle">관리자 처음 설정</div>
+    <input id="sCode" placeholder="설정 코드" autocomplete="off">
+    <input id="sPw" type="password" placeholder="관리자 비밀번호 (8자 이상)" autocomplete="new-password">
+    <input id="sPw2" type="password" placeholder="비밀번호 확인" autocomplete="new-password">
+    <button id="sBtn">설정하기</button><div class="err" id="sErr"></div>
+    <div class="hint">설정 코드는 처음 한 번만 써요.<br>관리자 비밀번호는 잊어버리지 않게 따로 보관해 주세요.</div>
+  </div>
+  <div class="gbox" id="gLogin" hidden>
+    <div class="glogo">JUST LIFE</div><div class="gsub">관리자</div>
+    <input id="lPw" type="password" placeholder="관리자 비밀번호" autocomplete="current-password">
+    <button id="lBtn">들어가기</button><div class="err" id="lErr"></div>
+    <div class="hint"><a href="#" id="forgot" style="color:#d9c7a6">비밀번호를 잊었어요</a></div>
+  </div>
+</div>
+
+<div id="app" class="hide">
+  <div class="top"><b>JUST LIFE 보장분석 · 관리자</b><span class="sp"></span>
+    <button onclick="location.href='/'">프로그램으로</button>
+    <button id="btnPw">관리자 비밀번호 변경</button>
+    <button id="btnOut">로그아웃</button></div>
+  <main>
+    <div class="tabs"><button data-t="users" class="on">팀원 관리</button><button data-t="logs">활동 기록</button></div>
+
+    <section id="t-users">
+      <div class="card">
+        <h2>팀원 추가 <small>아이디·비밀번호를 만들어 팀원에게 전달해 주세요</small></h2>
+        <div class="row">
+          <div class="fld"><label>이름</label><input id="nName" placeholder="홍길동"></div>
+          <div class="fld"><label>아이디 (영문 소문자·숫자)</label><input id="nId" placeholder="hong" autocapitalize="off" spellcheck="false"></div>
+          <div class="fld"><label>비밀번호 (6자 이상)</label><input id="nPw" placeholder="자동 생성"></div>
+          <button class="btn" id="genPw">비밀번호 만들기</button>
+          <button class="btn pri" id="addBtn">추가</button>
+        </div>
+        <div id="newInfo"></div>
+      </div>
+      <div class="card">
+        <h2>팀원 목록 <small id="uCount"></small></h2>
+        <table><thead><tr><th>이름</th><th>아이디</th><th>상태</th><th>마지막 로그인</th><th>등록일</th><th></th></tr></thead><tbody id="uBody"></tbody></table>
+      </div>
+    </section>
+
+    <section id="t-logs" class="hide">
+      <div class="card">
+        <div class="row">
+          <div class="fld"><label>시작일</label><input type="date" id="fFrom"></div>
+          <div class="fld"><label>종료일</label><input type="date" id="fTo"></div>
+          <div class="fld"><label>팀원</label><select id="fUser"><option value="">전체</option></select></div>
+          <button class="btn" data-r="0">오늘</button><button class="btn" data-r="6">최근 7일</button><button class="btn" data-r="29">최근 30일</button>
+          <button class="btn pri" id="logBtn">조회</button>
+          <span style="flex:1"></span><button class="btn" id="csvBtn">CSV 내려받기</button>
+        </div>
+        <p class="muted" style="font-size:12px;margin:12px 0 0">고객 보고서 내용은 서버에 저장되지 않아요. 활동 종류와 가린 고객명(예: 홍*동), 보험 건수만 기록돼요.</p>
+      </div>
+      <div class="card"><h2>팀원별 요약 <small id="sumRange"></small></h2>
+        <table class="sum"><thead id="sHead"></thead><tbody id="sBody"></tbody></table></div>
+      <div class="card"><h2>상세 기록 <small id="logCount"></small></h2>
+        <table><thead><tr><th>시간</th><th>이름</th><th>활동</th><th>내용</th></tr></thead><tbody id="lBody"></tbody></table></div>
+    </section>
+  </main>
+</div>
+<div id="toast"></div>
+
+<script>
+(function(){
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+const SS = "jl_admin_v1";
+let TOKEN = sessionStorage.getItem(SS) || "", USERS = [], LOGS = null;
+let tT; const toast = (m, k = "") => { const t = $("toast"); t.textContent = m; t.className = "on " + k; clearTimeout(tT); tT = setTimeout(() => t.className = "", 3500); };
+async function api(path, body){
+  const r = await fetch("/api/" + path, { method: body ? "POST" : "GET", headers: { "content-type": "application/json", ...(TOKEN ? { authorization: "Bearer " + TOKEN } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && TOKEN && !path.startsWith("admin/login")) { TOKEN = ""; sessionStorage.removeItem(SS); boot("다시 로그인해 주세요"); }
+  if (!r.ok) throw new Error(j.error || "서버에 연결하지 못했어요");
+  return j;
+}
+const pad = n => String(n).padStart(2, "0");
+const kst = ms => new Date(ms + 9 * 3600e3);
+const dt = ms => { if (!ms) return "-"; const d = kst(ms); return `${d.getUTCFullYear()}.${pad(d.getUTCMonth()+1)}.${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`; };
+const day = (off = 0) => kst(Date.now() - off * 864e5).toISOString().slice(0, 10);
+const genPw = () => { const a = "abcdefghjkmnpqrstuvwxyz23456789"; const r = crypto.getRandomValues(new Uint32Array(8)); return Array.from(r, x => a[x % a.length]).join(""); };
+
+/* ---------- 로그인 / 처음 설정 ---------- */
+async function boot(msg = ""){
+  $("app").classList.add("hide"); $("gate").classList.remove("hide");
+  if (TOKEN) { try { await loadUsers(); return enter(); } catch (e) {} }
+  let st; try { st = await api("admin/status"); } catch (e) { $("lErr").textContent = e.message; $("gLogin").hidden = false; return; }
+  $("gSetup").hidden = st.setup; $("gLogin").hidden = !st.setup;
+  (st.setup ? $("lErr") : $("sErr")).textContent = msg;
+  setTimeout(() => (st.setup ? $("lPw") : $("sCode")).focus(), 50);
+}
+let RESET = false;
+$("forgot").onclick = e => { e.preventDefault(); RESET = true; $("gLogin").hidden = true; $("gSetup").hidden = false;
+  $("sTitle").textContent = "관리자 비밀번호 재설정"; $("sBtn").textContent = "새 비밀번호로 바꾸기"; $("sErr").textContent = "처음 받은 설정 코드를 입력하고 새 비밀번호를 정해 주세요"; $("sCode").focus(); };
+$("sBtn").onclick = async () => {
+  if ($("sPw").value !== $("sPw2").value) { $("sErr").textContent = "비밀번호 확인이 달라요"; return; }
+  try { const j = await api(RESET ? "admin/reset" : "admin/setup", { code: $("sCode").value, pw: $("sPw").value }); TOKEN = j.token; sessionStorage.setItem(SS, TOKEN); await loadUsers(); enter(); toast(RESET ? "관리자 비밀번호를 새로 정했어요" : "관리자 비밀번호를 설정했어요"); RESET = false; }
+  catch (e) { $("sErr").textContent = e.message; }
+};
+$("lBtn").onclick = async () => {
+  try { const j = await api("admin/login", { pw: $("lPw").value }); TOKEN = j.token; sessionStorage.setItem(SS, TOKEN); $("lPw").value = ""; await loadUsers(); enter(); }
+  catch (e) { $("lErr").textContent = e.message; $("lPw").select(); }
+};
+$("lPw").onkeydown = e => { if (e.key === "Enter") $("lBtn").click(); };
+$("sPw2").onkeydown = e => { if (e.key === "Enter") $("sBtn").click(); };
+$("btnOut").onclick = () => { TOKEN = ""; sessionStorage.removeItem(SS); boot("로그아웃했어요"); };
+$("btnPw").onclick = async () => {
+  const old = prompt("현재 관리자 비밀번호"); if (old == null) return;
+  const pw = prompt("새 관리자 비밀번호 (8자 이상)"); if (pw == null) return;
+  if (prompt("새 비밀번호를 한 번 더 입력해 주세요") !== pw) return toast("새 비밀번호 확인이 달라요", "err");
+  try { const j = await api("admin/password", { old, pw }); TOKEN = j.token; sessionStorage.setItem(SS, TOKEN); toast("관리자 비밀번호를 바꿨어요"); }
+  catch (e) { toast(e.message, "err"); }
+};
+function enter(){ $("gate").classList.add("hide"); $("app").classList.remove("hide"); drawUsers(); }
+
+/* ---------- 탭 ---------- */
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
+  $("t-users").classList.toggle("hide", b.dataset.t !== "users"); $("t-logs").classList.toggle("hide", b.dataset.t !== "logs");
+  if (b.dataset.t === "logs" && !LOGS) loadLogs();
+});
+
+/* ---------- 팀원 관리 ---------- */
+async function loadUsers(){ USERS = (await api("admin/users")).users; }
+function drawUsers(){
+  $("uCount").textContent = `${USERS.length}명 · 사용 중 ${USERS.filter(u => u.active).length}명`;
+  $("uBody").innerHTML = USERS.length ? USERS.map(u => `<tr>
+    <td><b>${esc(u.name)}</b></td><td>${esc(u.id)}</td>
+    <td>${u.locked ? '<span class="pill lock">잠김</span>' : u.active ? '<span class="pill on">사용 중</span>' : '<span class="pill off">중지</span>'}</td>
+    <td>${dt(u.lastLogin)}</td><td class="muted">${dt(u.created).slice(0, 10)}</td>
+    <td><div class="acts">
+      <button class="btn" data-act="rename" data-id="${esc(u.id)}">이름 변경</button>
+      <button class="btn" data-act="reset" data-id="${esc(u.id)}">비밀번호 재설정</button>
+      ${u.locked ? `<button class="btn" data-act="unlock" data-id="${esc(u.id)}">잠금 해제</button>` : ""}
+      <button class="btn" data-act="${u.active ? "stop" : "start"}" data-id="${esc(u.id)}">${u.active ? "사용 중지" : "다시 사용"}</button>
+      <button class="btn red" data-act="del" data-id="${esc(u.id)}">삭제</button></div></td></tr>`).join("")
+    : `<tr><td colspan="6" class="empty">아직 등록된 팀원이 없어요. 위에서 팀원을 추가해 주세요.</td></tr>`;
+  $("fUser").innerHTML = `<option value="">전체</option>` + USERS.map(u => `<option value="${esc(u.id)}">${esc(u.name)} (${esc(u.id)})</option>`).join("");
+}
+const showPw = (name, id, pw, title) => { $("newInfo").innerHTML = `<div class="newpw">${title}<br>${esc(name)}님 · 아이디 <code>${esc(id)}</code> · 비밀번호 <code>${esc(pw)}</code> <button class="btn" id="cpBtn">복사</button><br><span class="muted" style="font-size:12px">이 비밀번호는 지금만 보여요. 팀원에게 전달해 주세요.</span></div>`;
+  $("cpBtn").onclick = () => navigator.clipboard.writeText(`JUST LIFE 보장분석\n주소: ${location.origin}\n아이디: ${id}\n비밀번호: ${pw}`).then(() => toast("주소·아이디·비밀번호를 복사했어요")); };
+$("genPw").onclick = () => { $("nPw").value = genPw(); };
+$("addBtn").onclick = async () => {
+  const name = $("nName").value.trim(), id = $("nId").value.trim().toLowerCase(), pw = $("nPw").value || genPw();
+  try { USERS = (await api("admin/users", { name, id, pw })).users; drawUsers(); showPw(name, id, pw, "팀원을 추가했어요."); $("nName").value = $("nId").value = $("nPw").value = ""; }
+  catch (e) { toast(e.message, "err"); }
+};
+$("uBody").onclick = async e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const id = b.dataset.id, u = USERS.find(x => x.id === id), act = b.dataset.act;
+  try {
+    if (act === "reset") { if (!confirm(`${u.name}님 비밀번호를 새로 만들까요? 지금 쓰는 비밀번호는 바로 못 쓰게 돼요.`)) return;
+      const pw = genPw(); USERS = (await api("admin/users/update", { id, pw })).users; showPw(u.name, id, pw, "비밀번호를 새로 만들었어요."); scrollTo({ top: 0, behavior: "smooth" }); }
+    if (act === "rename") { const name = prompt("새 이름", u.name); if (!name) return; USERS = (await api("admin/users/update", { id, name })).users; }
+    if (act === "unlock") USERS = (await api("admin/users/update", { id, unlock: true })).users;
+    if (act === "stop") { if (!confirm(`${u.name}님 사용을 중지할까요? 바로 로그아웃되고 다시 로그인할 수 없어요.`)) return; USERS = (await api("admin/users/update", { id, active: false })).users; }
+    if (act === "start") USERS = (await api("admin/users/update", { id, active: true })).users;
+    if (act === "del") { if (!confirm(`${u.name}님(${id})을 삭제할까요? 활동 기록은 남아요.`)) return; USERS = (await api("admin/users/delete", { id })).users; }
+    drawUsers(); if (act !== "reset") toast("반영했어요");
+  } catch (err) { toast(err.message, "err"); }
+};
+
+/* ---------- 활동 기록 ---------- */
+const COLS = [["login","로그인"],["pdf","PDF 불러오기"],["save","파일 저장"],["open","파일 열기"],["print","인쇄/PDF"],["new","새 보고서"],["plan","플랜 저장"],["hira","심평원 분석"],["hiraprint","고지사항 인쇄"],["prop","가입제안서"]];
+$("fFrom").value = day(6); $("fTo").value = day(0);
+document.querySelectorAll("button[data-r]").forEach(b => b.onclick = () => { $("fFrom").value = day(+b.dataset.r); $("fTo").value = day(0); loadLogs(); });
+$("logBtn").onclick = () => loadLogs();
+$("fUser").onchange = () => loadLogs();
+async function loadLogs(){
+  try { LOGS = await api(`admin/logs?from=${$("fFrom").value}&to=${$("fTo").value}&user=${encodeURIComponent($("fUser").value)}`); }
+  catch (e) { return toast(e.message, "err"); }
+  const rows = LOGS.rows, by = {};
+  rows.forEach(r => { const s = by[r.id] ||= { name: r.name, last: 0 }; s[r.a] = (s[r.a] || 0) + 1; s.last = Math.max(s.last, r.t); });
+  USERS.forEach(u => { if (!$("fUser").value || $("fUser").value === u.id) by[u.id] ||= { name: u.name, last: 0 }; });
+  $("sumRange").textContent = `${LOGS.from} ~ ${LOGS.to}`;
+  $("sHead").innerHTML = `<tr><th>이름</th>${COLS.map(([, l]) => `<th class="num">${l}</th>`).join("")}<th>마지막 활동</th></tr>`;
+  const list = Object.entries(by).sort((a, b) => (b[1].pdf || 0) - (a[1].pdf || 0) || a[1].name.localeCompare(b[1].name, "ko"));
+  $("sBody").innerHTML = list.length ? list.map(([id, s]) => `<tr><td>${esc(s.name)} <span class="muted" style="font-weight:400">${esc(id)}</span></td>${COLS.map(([k]) => `<td class="num">${s[k] || '<span class="muted">0</span>'}</td>`).join("")}<td>${s.last ? dt(s.last) : '<span class="muted">기간 내 활동 없음</span>'}</td></tr>`).join("")
+    : `<tr><td colspan="${COLS.length + 2}" class="empty">기록이 없어요</td></tr>`;
+  $("logCount").textContent = `${LOGS.total}건${LOGS.total > rows.length ? ` (최근 ${rows.length}건 표시)` : ""}`;
+  $("lBody").innerHTML = rows.length ? rows.slice(0, 500).map(r => `<tr><td>${dt(r.t)}</td><td>${esc(r.name)}</td><td>${esc(r.label)}</td><td class="muted">${esc(r.d)}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="empty">이 기간에 기록이 없어요</td></tr>`;
+}
+$("csvBtn").onclick = () => {
+  if (!LOGS) return toast("먼저 조회해 주세요", "err");
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const csv = "﻿" + [["시간","이름","아이디","활동","내용"].map(q).join(","), ...LOGS.rows.map(r => [dt(r.t), r.name, r.id, r.label, r.d].map(q).join(","))].join("\r\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = `활동기록_${LOGS.from}_${LOGS.to}.csv`; a.click();
+};
+
+boot();
+})();
+</script>
+</body>
+</html>
