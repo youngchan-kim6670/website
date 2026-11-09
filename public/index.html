@@ -1533,7 +1533,7 @@ const ADD_TARGETS = [
   ["일반수술", [["jong","1-5종"],["surgD","질병수술"],["surgS","재해수술"]]],
   ["일반입원", [["hosp","입원일당"],["icu","중환자실"]]],
   ["암진단비", [["cGen","일반암"],["cWomen","여성암"],["cSim","유사암"]]],
-  ["암수술", [["csOpen","암수술"],["csNon","암 비관혈"],["dvAll","다빈치"]]],
+  ["암수술", [["csOpen","암수술"],["dvAll","다빈치·로봇"]]],
   ["암입원/통원", [["ciIn","암직접입원"],["ciOut","암직접통원"]]],
   ["약물~중입자", [["drug","항암약물"],["rad","항암방사선"],["combo","약물+방사선 둘 다"],["target","표적"],["cart","카티"],["heavy","중입자"]]],
   ["뇌혈관", [["bDx","진단비"],["bSu","수술비"]]],
@@ -1576,11 +1576,11 @@ function analyze(p) {
   const exG = sum(r => r.n === "일반암진단비" && has(r, /(성별암|여성암|남성암|생식기암)[^)]*제외/));   // '성별암 제외' 일반암이 섞이면 여성암은 그만큼 적게
   if (exG && !v.cWomen && v.cGen > exG) v.cWomen = v.cGen - exG;
   // 암수술 / 다빈치
-  const cs = r => (r.n === "암수술비" || has(r, /암수술/)) && !has(r, /다빈치|주요치료/);
-  v.csOpen = sum(r => cs(r) && !has(r, /비관혈/)); v.csNon = sum(r => cs(r) && has(r, /비관혈/));
-  v.dvAll = sum(r => has(r, /다빈치/) && !has(r, /제외/) && !has(r, /갑상선|전립선/));
-  v.dvEx = sum(r => has(r, /다빈치/) && has(r, /제외/));
-  v.dvTP = sum(r => has(r, /다빈치/) && !has(r, /제외/) && has(r, /갑상선|전립선/));
+  // 같은 담보명은 합치고(2건 이상 가입), 담보명이 다르면 가장 큰 것 하나
+  const grpMax = test => { const g = {}; R.filter(test).forEach(r => { const k = r.c.replace(/\([^()]*(갱신|무배당|최초|간편|고지|해약환급금|보증)[^()]*\)|무배당|최초계약/g, ""); g[k] = (g[k] || 0) + r.a; }); return Math.max(0, ...Object.values(g)); };
+  const cs = r => (r.n === "암수술비" || has(r, /암수술/)) && !has(r, /다빈치|로봇|주요치료/);
+  v.csOpen = grpMax(r => cs(r) && !has(r, /비관혈/)); v.csNon = 0;          // 관혈 기준
+  v.dvAll = grpMax(r => has(r, /다빈치|로봇/) && !has(r, /주요치료/)); v.dvEx = 0; v.dvTP = 0;   // 다빈치·로봇수술 중 가장 큰 것
   // 암입원 / 통원 (암직접치료)
   v.ciIn = sum(r => has(r, /암직접치료입원/) && !has(r, /특정유사암|상급종합/));
   v.ciOut = sum(r => has(r, /암직접치료통원/));
@@ -1662,11 +1662,7 @@ function cellsOf(v, p) {
   if (v.cGen) ca.push(`일반암 ${fmt(v.cGen)}`); if (v.cWomen) ca.push(`여성암 ${fmt(v.cWomen)}`); if (v.cSim) ca.push(`유사암 ${fmt(v.cSim)}`);
   c.cancer = ca.length ? ca.join("\n") : X;
   const cs = [];
-  if (v.csOpen || v.csNon || v.dvAll || v.dvEx || v.dvTP) cs.push(`암수술 ${fmt(v.csOpen)}` + (v.csNon ? ` / 비관혈 ${fmt(v.csNon)}` : ""));
-  if (v.dvAll || v.dvEx || v.dvTP) {
-    const d = [v.dvAll, v.dvEx].filter(Boolean).map(fmt);
-    cs.push(`다빈치 ${d.length ? d.join(" / ") : X}` + (v.dvTP ? ` (갑상선·전립선 ${fmt(v.dvTP)})` : ""));
-  }
+  if (v.csOpen || v.dvAll) cs.push(`${fmt(v.csOpen)} / ${fmt(v.dvAll)}`);      // 암수술 / 다빈치로봇수술
   c.cSurg = cs.length ? cs.join("\n") : X;
   const sg = n => n ? ` (+상급종합 ${fmt(n)})` : "";
   c.cHosp = (v.ciIn || v.ciOut || v.ciInSG || v.ciOutSG) ? `${fmt(v.ciIn)}${sg(v.ciInSG)} / ${fmt(v.ciOut)}${sg(v.ciOutSG)}` : X;
@@ -2034,7 +2030,7 @@ const BUILTIN_PLANS = [
     "surgery": "1,500 (1-5종)\n질병 20 / 재해 30",
     "hosp": "X\n(1인실, 2-3인실, 4-5인실\n중환자실 21)",
     "cancer": "일반암 10,000\n여성암 5,000\n유사암 2,000",
-    "cSurg": "암수술 X\n다빈치 1,000 / 1,000",
+    "cSurg": "X / 1,000",
     "cHosp": "10 / 15",
     "cDrug": "2,000 / 2,000\n7,000 / X / 5,000",
     "brain": "진단비 1,000\n수술비 1,000",
