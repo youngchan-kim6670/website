@@ -225,6 +225,8 @@ table.ht tr.picked td:not(.tg):not(.hy){background-color:#eef5ff}
 .hcopy .tb-btn{color:#444;border-color:#ccc}.hcopy .tb-btn.gold{background:var(--gold);color:#fff;border-color:var(--gold)}
 .hcopy .muted{color:var(--muted);font-size:11.5px;margin:6px 0 8px}
 .hcopy textarea{width:100%;min-height:220px;box-sizing:border-box;border:1px solid var(--line);border-radius:6px;padding:10px 12px;font:13px/1.6 'Noto Sans KR',sans-serif;resize:vertical}
+#propRev{width:297mm;margin:16px auto 0}
+body.view-hira #propRev{display:none!important}
 /* final page */
 .ba .lk,.ba .relink{display:block;font-size:9.5px;font-weight:500;margin-top:1px}
 .ba .lk{color:var(--muted)}
@@ -288,6 +290,7 @@ input.s{width:52px;border:1px solid var(--line);border-radius:4px;font:inherit;t
   body:not(.view-hira) #hira{display:none!important}
   body.view-hira .hcopy,body.view-hira table.ht .sel{display:none!important}
   body.view-hira table.ht tr.picked td{background-color:transparent}
+  #propRev{display:none!important}
   input.sd::placeholder{color:transparent}
 }
 </style>
@@ -312,7 +315,7 @@ input.s{width:52px;border:1px solid var(--line);border-radius:4px;font:inherit;t
   <input type="file" id="fJson" accept=".json,application/json" hidden>
 </div>
 <div id="toast"></div>
-<div id="review"></div><div id="rvmenu" hidden></div>
+<div id="review"></div><div id="propRev"></div><div id="rvmenu" hidden></div>
 <div id="gate"><div class="gbox">
   <div class="glogo">JUST LIFE</div><div class="gsub">보장분석 프로그램</div>
   <input type="text" id="gid" placeholder="아이디" autocomplete="username" autocapitalize="off" spellcheck="false">
@@ -1725,7 +1728,7 @@ function buildProduct(p) {
     return { v, prod, entry };
 }
 
-return { parseMeritz, buildReport, buildProduct, ADD_TARGETS, fmt };
+return { parseMeritz, buildReport, buildProduct, ADD_TARGETS, fmt, fmtKor };
 })();
 </script>
 <script>
@@ -1821,6 +1824,7 @@ function loadData(obj){
   DATA_KEYS.forEach(k => { if (obj[k] !== undefined) DATA[k] = JSON.parse(JSON.stringify(obj[k])); });
   if (obj.hira === undefined) DATA.hira = null;
   if (obj.proposals === undefined) DATA.proposals = [];
+  if (typeof drawPropRev === "function") drawPropRev();
   if (typeof drawHira === "function") drawHira();
   window.rerenderAll();
 }
@@ -2230,20 +2234,87 @@ document.addEventListener("click", e => {
 });
 
 /* ---------- 가입제안서 PDF → 점검 후(신규 플랜) · 상품비교 자동 입력 ---------- */
-const ETC_KEYS = [["골절", /골절/], ["깁스", /깁스/], ["대상포진", /대상포진/], ["요로결석", /요로결석/], ["화상", /화상/], ["창상봉합", /창상봉합/], ["변연절제", /변연절제/], ["간병인", /간병인/], ["치아", /치아|임플란트|보철|크라운/], ["배상책임", /배상책임/]];
+const ETC_KEYS = [["골절", /골절/], ["깁스", /깁스/], ["대상포진", /대상포진/], ["요로결석", /요로결석/], ["화상", /화상/], ["창상봉합", /창상봉합/], ["변연절제", /변연절제/]];
+const nzs = s => String(s || "").replace(/\s/g, "");
+const amtK = n => n >= 10000 ? Meritz.fmtKor(n) : Meritz.fmt(n);
+const shortName = co => String(co).replace(/\((?:[^()]*?(?:갱신|무배당|해약환급금|최초|간편|고지|보증|일반심사|건강고지|납입면제|기본형|형\b)[^()]*?)\)/g, "")
+  .replace(/무배당|최초계약|\[[^\]]*\]/g, "").replace(/(특약|특별약관|보장특약|담보|보장)$/g, "").replace(/\s+/g, " ").trim();
+/* 보험 종류별 기타특약 · 일반사망 (가입제안서) */
+function autoEtc(r, name){
+  const R = r.rows.filter(x => !/공제\]|\[공제/.test(x.co)), L = [];
+  const mx = re => R.filter(x => re.test(nzs(x.co))).reduce((m, x) => Math.max(m, x.amt || 0), 0);
+  const used = new Set();
+  const mark = re => R.forEach((x, i) => { if (re.test(nzs(x.co))) used.add(i); });
+  // 간병
+  const g1 = mx(/간병인사용/), g2 = mx(/간병인지원/);
+  if (g1) L.push(`간병인사용 ${amtK(g1)}`); if (g2) L.push(`간병인지원 ${amtK(g2)}`); mark(/간병인(사용|지원)/);
+  // 치아: 상품 표기 그대로, 보존 → 보철 → 임플란트 → 크라운
+  const TOOTH = [/충전|보존|아말감|글래스|아이오노머|레진|인레이|온레이/, /보철|틀니|브릿지|브리지/, /임플란트/, /크라운/];
+  const tooth = {};
+  R.forEach((x, i) => { const c = nzs(x.co); const g = TOOTH.findIndex(re => re.test(c)); if (g < 0 || !x.amt) return; used.add(i);
+    const lb = shortName(x.co).replace(/치료(비|자금)?$/, "").replace(/\s/g, ""); if (!tooth[lb] || tooth[lb].amt < x.amt) tooth[lb] = { g, amt: x.amt }; });
+  Object.entries(tooth).sort((a, b) => a[1].g - b[1].g).forEach(([lb, o]) => L.push(`${lb} ${amtK(o.amt)}`));
+  // 화재
+  const fire = mx(/화재.*손해|손해.*화재|주택화재|건물화재|가재도구|화재\(건물|화재\(가재/);
+  if (fire) L.push(`화재손해 ${amtK(fire)}`);
+  const water = mx(/급배수|급수배수|급수|배수/); if (water) L.push(`급배수 ${amtK(water)}`);
+  const life = mx(/일상생활.*배상/); if (life) L.push(`일상생활배상책임 ${amtK(life)}`);
+  const food = mx(/음식물.*배상/); if (food) L.push(`음식물배상책임 ${amtK(food)}`);
+  mark(/화재.*손해|손해.*화재|주택화재|건물화재|가재도구|급배수|급수|배수|배상/);
+  // 그 밖의 기타특약 (골절·깁스 등)
+  ETC_KEYS.forEach(([lb, re]) => { const a = mx(re); if (a) L.push(`${lb} ${amtK(a)}`); mark(re); });
+  // 연금 · 종신: 원화/달러 · 납입기간 · 추가 보장 담보
+  if (/연금|종신/.test(name)) {
+    const head = [r.usd ? "달러" : "원화", r.payYears ? r.payYears + "년납" : ""].filter(Boolean).join(" · ");
+    const riders = R.slice(1).filter(x => x.amt && !/납입면제|보험료|지정대리/.test(x.co)).map(x => `${shortName(x.co)} ${r.usd ? "$" + x.amt.toLocaleString() : amtK(x.amt)}`);
+    L.unshift(head, ...riders);
+  }
+  return { lines: L, used };
+}
 async function readProposalFile(f){
   await loadPdfLib();
   const doc = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
   const r = await Proposal.readProposal(doc, f.name);
-  if (!r.rows.length) throw new Error(`'${f.name}'에서 담보 표를 찾지 못했어요`);
-  const { prod } = Meritz.buildProduct({ ...r, rows: r.rows });
-  const etc = [];
-  ETC_KEYS.forEach(([lb, re]) => { const amt = r.rows.filter(x => re.test(x.co) && !/제외/.test(x.co)).reduce((m, x) => Math.max(m, x.amt), 0); if (amt) etc.push(`${lb} ${Meritz.fmt(amt)}`); });
-  prod.cells.etc = etc.join("\n");
-  const name = (prod.name || r.name).replace(/\s*\(?무배당\)?\s*/g, " ").replace(/\s+/g, " ").trim();
+  if (!r.rows.length) throw new Error(`'${f.name}'에서 담보 표를 찾지 못했어요 (글자 없이 그림으로 된 PDF일 수 있어요)`);
+  const name = r.name.replace(/\s*\(?무배당\)?\s*/g, " ").replace(/\s+/g, " ").trim();
+  const { prod } = Meritz.buildProduct({ ...r, name, rows: r.rows });
+  const ae = autoEtc(r, name);
+  prod.cells.etc = ae.lines.join("\n");
+  // 종신 · 정기: 주계약(질병·재해 구분 없는 사망) = 일반사망
+  if (/종신|정기/.test(name) && (!prod.cells.death || prod.cells.death === "X")) {
+    const main = r.rows.find(x => x.amt && !/질병|상해|재해|납입면제/.test(x.co));
+    if (main) prod.cells.death = r.usd ? "$" + main.amt.toLocaleString() : amtK(main.amt);
+  }
+  const rows = r.rows.map((x, i) => ({ co: x.co, amt: x.amt, txt: x.usd || r.usd ? "$" + (x.amt || 0).toLocaleString() : amtK(x.amt || 0), tag: x.sj || (ae.used.has(i) ? "기타특약(자동)" : "") }));
   return { label: `${r.insurer ? r.insurer + " " : ""}${name}${r.premium ? " · " + won(r.premium) + "원" : ""}`,
-           prod: { ...prod, name, insurer: r.insurer || prod.insurer || "", premium: r.premium || null, payYears: r.payYears || null, cells: prod.cells }, nRows: r.rows.length };
+           prod: { ...prod, name, insurer: r.insurer || prod.insurer || "", premium: r.premium || null, payYears: r.payYears || null, cells: prod.cells },
+           rows, auto: ae.lines, picked: {} };
 }
+/* 제안서 담보 목록: 체크한 담보 → 기타특약에 추가 (치매·재가 등 직접 고르는 상품용) */
+function propEtc(P){ return [...P.auto, ...P.rows.filter((x, i) => P.picked[i]).map(x => `${shortName(x.co)} ${x.txt}`)].join("\n"); }
+function syncProp(P, oldEtc){
+  const etc = propEtc(P); P.prod.cells.etc = etc;
+  const same = x => x && x.name === P.prod.name && (x.premium || null) === (P.prod.premium || null);
+  [...(DATA.after.products || []), ...(DATA.planPages || []).flatMap(pg => pg.list || [])].forEach(x => { if (same(x) && x.cells && (x.cells.etc || "") === (oldEtc || "")) x.cells.etc = etc; });
+  window.rerenderAll(); drawPropRev();
+}
+function drawPropRev(){
+  const box = $("propRev"); const list = (DATA.proposals || []).filter(p => p.rows);
+  if (!list.length || box.dataset.hide === "1") { box.innerHTML = ""; return; }
+  const open = box.querySelector("details") ? box.querySelector("details").open : true;
+  const was = box.querySelector("details.rvp") ? new Set([...box.querySelectorAll("details.rvp")].filter(d => d.open).map(d => d.dataset.k)) : null;
+  box.innerHTML = `<details class="rv"${open ? " open" : ""}><summary>가입제안서 담보 목록 <small>첨부한 제안서 ${list.length}개 · 체크한 담보는 그 상품의 기타특약에 추가돼요</small></summary>
+    <p class="rvnote">파란 글씨는 보고서 칸에 자동으로 들어간 담보예요. 치매·재가(장기요양)처럼 직접 고르는 상품은 필요한 담보를 체크하세요. 이 목록은 인쇄되지 않아요.
+    <button class="tb-btn" style="color:#424141;border-color:#ccc;margin-left:8px" onclick="var b=document.getElementById('propRev');b.dataset.hide='1';b.innerHTML=''">목록 닫기</button></p>
+    <div class="rvgrid">${list.map((P, pi) => `<details class="rvp" data-k="${esc(P.label)}"${(was ? was.has(P.label) : pi === 0) ? " open" : ""}><summary><b>${esc(P.label)}</b> <small>담보 ${P.rows.length}개${Object.keys(P.picked).length ? " · 체크 " + Object.keys(P.picked).length + "개" : ""}</small></summary><table>${P.rows.map((x, i) => `<tr><td style="width:22px"><input type="checkbox" class="ppick" data-p="${pi}" data-i="${i}"${P.picked[i] ? " checked" : ""}></td>
+      <td>${esc(x.co)}</td><td class="amt">${esc(x.txt)}</td><td style="width:110px">${x.tag ? `<span class="chip ${/기타특약/.test(x.tag) ? "use" : "add"}">${esc(x.tag)}</span>` : ""}</td></tr>`).join("")}</table></details>`).join("")}</div></details>`;
+}
+document.addEventListener("change", e => {
+  const t = e.target; if (!t.classList || !t.classList.contains("ppick")) return;
+  const P = (DATA.proposals || []).filter(p => p.rows)[+t.dataset.p], i = +t.dataset.i, old = P.prod.cells.etc;
+  if (t.checked) P.picked[i] = true; else delete P.picked[i];
+  syncProp(P, old);
+});
 let propMode = null;
 async function importProposals(files){
   const mode = propMode || { to: "after" }; propMode = null;
@@ -2252,7 +2323,8 @@ async function importProposals(files){
   for (const f of files) { try { got.push(await readProposalFile(f)); } catch (e) { console.error(e); toast(e.message || "제안서를 읽지 못했어요", "err"); } }
   if (!got.length) return;
   DATA.proposals = DATA.proposals || [];
-  got.forEach(g => { DATA.proposals = DATA.proposals.filter(x => x.label !== g.label); DATA.proposals.unshift({ label: g.label, prod: g.prod }); });
+  got.forEach(g => { DATA.proposals = DATA.proposals.filter(x => x.label !== g.label); DATA.proposals.unshift(g); });
+  $("propRev").dataset.hide = ""; drawPropRev();
   if (mode.to === "plan") {
     const P = DATA.planPages[mode.k], L = got.slice(0, 4);
     P.count = Math.max(2, L.length);
